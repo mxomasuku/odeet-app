@@ -1,0 +1,15 @@
+rules_version='2'
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is blocked
+    function isUserBlocked() {
+      return 'isBlocked' in request.auth.token && request.auth.token.isBlocked == true;
+    }
+    
+    match /{document=**} {
+      // Allow read/write if authenticated and NOT blocked
+      allow read, write: if request.auth != null && !isUserBlocked();
+    }
+  }
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>1077847279793-tjid5sqr576k6l7tgoiqrt2us3lo0kag.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.1077847279793-tjid5sqr576k6l7tgoiqrt2us3lo0kag</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>1077847279793-u7bpkheg5m5amp2s6a9t1g95hvgm968b.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBygXNCdt6PQpx74fbeEBRffxslVkB00Pg</string>
+	<key>GCM_SENDER_ID</key>
+	<string>1077847279793</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.odeet.stocktake</string>
+	<key>PROJECT_ID</key>
+	<string>odeet-app</string>
+	<key>STORAGE_BUCKET</key>
+	<string>odeet-app.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:1077847279793:ios:6f78b354a11184112e7a90</string>
+</dict>
+</plist>

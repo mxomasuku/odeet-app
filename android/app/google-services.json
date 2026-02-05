@@ -1,0 +1,90 @@
+{
+  "project_info": {
+    "project_number": "1077847279793",
+    "project_id": "odeet-app",
+    "storage_bucket": "odeet-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1077847279793:android:bdbc479c81e5e2c12e7a90",
+        "android_client_info": {
+          "package_name": "com.example.stocktake"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1077847279793-djts9as4kv58nmse59va8dpfhnnsek4i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4tWXf02LzylyuZZdRVFoTQ4w4UxqK6I4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1077847279793-djts9as4kv58nmse59va8dpfhnnsek4i.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1077847279793-tjid5sqr576k6l7tgoiqrt2us3lo0kag.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.odeet.stocktake"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1077847279793:android:ea597edcd9054a312e7a90",
+        "android_client_info": {
+          "package_name": "com.odeet.stocktake"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1077847279793-u7bpkheg5m5amp2s6a9t1g95hvgm968b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.odeet.stocktake",
+            "certificate_hash": "26075a0e2ab60a10d8f5ac6396a333aa3708fdf4"
+          }
+        },
+        {
+          "client_id": "1077847279793-djts9as4kv58nmse59va8dpfhnnsek4i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4tWXf02LzylyuZZdRVFoTQ4w4UxqK6I4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1077847279793-djts9as4kv58nmse59va8dpfhnnsek4i.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1077847279793-tjid5sqr576k6l7tgoiqrt2us3lo0kag.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.odeet.stocktake"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

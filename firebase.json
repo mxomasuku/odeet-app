@@ -1,0 +1,67 @@
+{
+    "hosting": {
+        "public": "build/web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ]
+    },
+    "firestore": {
+        "rules": "firestore.rules",
+        "indexes": "firestore.indexes.json"
+    },
+    "functions": {
+        "source": "backend/functions",
+        "runtime": "nodejs22"
+    },
+    "storage": {
+        "rules": "storage.rules"
+    },
+    "emulators": {
+        "auth": {
+            "port": 9099
+        },
+        "functions": {
+            "port": 5001
+        },
+        "firestore": {
+            "port": 8080
+        },
+        "storage": {
+            "port": 9199
+        },
+        "ui": {
+            "enabled": true
+        },
+        "singleProjectMode": true
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "odeet-app",
+                    "appId": "1:1077847279793:android:ea597edcd9054a312e7a90",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "odeet-app",
+                    "configurations": {
+                        "android": "1:1077847279793:android:ea597edcd9054a312e7a90",
+                        "ios": "1:1077847279793:ios:6f78b354a11184112e7a90"
+                    }
+                }
+            },
+            "ios": {
+                "default": {
+                    "projectId": "odeet-app",
+                    "appId": "1:1077847279793:ios:6f78b354a11184112e7a90",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            }
+        }
+    }
+}
