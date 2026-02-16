@@ -18,6 +18,7 @@ import '../../../data/repositories/transfer_repository.dart';
 import '../../../data/repositories/shop_repository.dart';
 import '../../../data/models/shop_model.dart';
 import '../../widgets/tutorial/tutorial_overlay.dart';
+import '../../widgets/common/sync_status_widget.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -32,23 +33,66 @@ class DashboardPage extends ConsumerWidget {
 
     // Show loading if user or organization is not yet loaded
     if (userAsync.valueOrNull == null || orgAsync.valueOrNull == null) {
-      // If data is missing and we are not loading, show setup view
-      if (!userAsync.isLoading && !orgAsync.isLoading) {
-        return const SetupAccountView();
+      if (userAsync.isLoading || orgAsync.isLoading) {
+        return const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading your profile...'),
+              ],
+            ),
+          ),
+        );
       }
 
-      return const Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Setting up your account...'),
-            ],
+      if (userAsync.hasError || orgAsync.hasError) {
+        return Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 48, color: Colors.amber),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Unable to load profile',
+                    style: AppTextStyles.heading3,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'This may be due to a poor internet connection.\nWe are trying to synchronize your data.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ref.invalidate(currentUserProvider);
+                      ref.invalidate(currentOrganizationProvider);
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        ref.read(authControllerProvider.notifier).signOut(),
+                    child: const Text('Sign Out'),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      );
+        );
+      }
+
+      // Only show SetupAccountView if we are NOT loading AND have NO error, logic implies "User exists in Auth but not in Firestore"
+      return const SetupAccountView();
     }
 
     // Check if user has shops - if not, show onboarding prompt (or empty state for non-owners)
@@ -81,9 +125,7 @@ class DashboardPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  isOwnerOrManager
-                      ? 'Welcome to StockTake!'
-                      : 'No Shops Assigned',
+                  isOwnerOrManager ? 'Welcome to Odeet!' : 'No Shops Assigned',
                   style: AppTextStyles.heading2,
                   textAlign: TextAlign.center,
                 ),
@@ -133,8 +175,9 @@ class DashboardPage extends ConsumerWidget {
 
     final dashboardScaffold = Scaffold(
       appBar: AppBar(
-        title: const Text('My Organization'),
+        title: Text(orgAsync.valueOrNull?.name ?? 'My Organization'),
         actions: [
+          const SyncStatusWidget(),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => _showAlertsBottomSheet(context, ref),

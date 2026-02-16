@@ -69,15 +69,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo/Title
-                    const Icon(
-                      Icons.inventory_2,
-                      size: 64,
-                      color: AppTheme.primaryColor,
+                    // Logo
+                    Image.asset(
+                      'assets/icon/icon.png',
+                      width: 80,
+                      height: 80,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'StockTake',
+                      'Odeet',
                       style: AppTextStyles.heading1.copyWith(
                         color: AppTheme.primaryColor,
                       ),

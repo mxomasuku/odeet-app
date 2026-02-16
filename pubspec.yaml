@@ -65,6 +65,7 @@ dependencies:
   cloud_functions: ^5.6.2
   device_info_plus: ^10.1.0
 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -75,13 +76,31 @@ dev_dependencies:
   riverpod_generator: ^2.3.9
   hive_generator: ^2.0.1
   mockito: ^5.4.4
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#1976D2"
+    theme_color: "#1976D2"
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/icon/icon.png"
 
 flutter:
   uses-material-design: true
 
-#   assets:
-#     - assets/images/
-#     - assets/fonts/
+  assets:
+    - assets/icon/
 
 #   fonts:
 #     - family: Inter

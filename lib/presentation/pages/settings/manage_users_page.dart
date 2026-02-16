@@ -11,6 +11,7 @@ import '../../widgets/common/common_widgets.dart';
 import '../../widgets/common/loading_overlay.dart';
 import '../../../data/models/shop_model.dart';
 import '../../../data/repositories/shop_repository.dart';
+import '../../widgets/common/requires_network_widget.dart';
 
 /// Provider for fetching organization invites
 /// Provider for fetching organization invites
@@ -110,12 +111,15 @@ class _ManageUsersPageState extends ConsumerState<ManageUsersPage>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTeamTab(),
-          _buildInvitesTab(),
-        ],
+      body: RequiresNetworkWidget(
+        message: 'Managing users requires an internet connection',
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildTeamTab(),
+            _buildInvitesTab(),
+          ],
+        ),
       ),
       floatingActionButton: canInvite
           ? FloatingActionButton.extended(

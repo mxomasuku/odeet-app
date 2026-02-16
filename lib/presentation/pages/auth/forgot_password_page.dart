@@ -87,11 +87,11 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Icon
-          const Icon(
-            Icons.lock_reset,
-            size: 64,
-            color: AppTheme.primaryColor,
+          // Logo
+          Image.asset(
+            'assets/icon/icon.png',
+            width: 64,
+            height: 64,
           ),
           const SizedBox(height: 24),
 

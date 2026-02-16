@@ -46,7 +46,7 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
   final List<TutorialStep> _steps = [
     TutorialStep(
       icon: Icons.dashboard,
-      title: 'Welcome to StockTake!',
+      title: 'Welcome to Odeet!',
       description:
           'Your dashboard shows a quick overview of your business - sales, inventory alerts, and recent activity.',
       position: TutorialPosition.center,
@@ -238,7 +238,6 @@ class _TutorialOverlayState extends ConsumerState<TutorialOverlay>
                         child: Icon(
                           step.icon,
                           size: 64,
-                          color: AppTheme.primaryColor,
                         ),
                       ),
                       const SizedBox(height: 32),

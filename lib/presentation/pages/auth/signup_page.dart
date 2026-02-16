@@ -162,6 +162,13 @@ class _SignupPageState extends ConsumerState<SignupPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Logo
+                    Image.asset(
+                      'assets/icon/icon.png',
+                      width: 64,
+                      height: 64,
+                    ),
+                    const SizedBox(height: 16),
                     // Title
                     const Text(
                       'Create Account',

@@ -14,7 +14,6 @@ import 'core/services/connectivity_service.dart';
 import 'core/services/sync_service.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/router/app_router.dart';
-import 'presentation/providers/theme_mode_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +25,7 @@ void main() async {
 
   // Connect to Firebase Emulators only in Debug Mode AND on simulators/emulators
   if (kDebugMode) {
+    debugPrint('Debug mode detected. Checking for emulator environment...');
     final isEmulatorDevice = await _isRunningOnEmulator();
     if (isEmulatorDevice) {
       try {
@@ -123,14 +123,13 @@ class _StockTakeAppState extends ConsumerState<StockTakeApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'StockTake',
+      title: 'Odeet',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }

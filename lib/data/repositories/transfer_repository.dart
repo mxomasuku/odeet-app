@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/transfer_model.dart';
 import '../../core/constants/firestore_paths.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/stream_extensions.dart';
 import '../../presentation/controllers/auth_controller.dart';
 
 /// Transfer repository provider
@@ -14,13 +16,18 @@ final transferRepositoryProvider = Provider<TransferRepository>((ref) {
 /// Transfers stream provider
 final transfersStreamProvider = StreamProvider<List<TransferModel>>((ref) {
   final repository = ref.watch(transferRepositoryProvider);
-  return repository.watchTransfers();
+  return repository.watchTransfers().onErrorEmit(() => <TransferModel>[]);
 });
 
 /// Pending transfers count
 final pendingTransfersCountProvider = FutureProvider<int>((ref) async {
-  final repository = ref.watch(transferRepositoryProvider);
-  return repository.getPendingTransfersCount();
+  try {
+    final repository = ref.watch(transferRepositoryProvider);
+    return repository.getPendingTransfersCount();
+  } catch (e) {
+    debugPrint('Error fetching pending transfers count: $e');
+    return 0;
+  }
 });
 
 /// Transfer repository for Firestore operations

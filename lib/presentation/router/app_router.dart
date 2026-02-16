@@ -78,12 +78,17 @@ class AuthNotifier extends ChangeNotifier {
     });
 
     // Listen to user data for blocked status changes
+    // Listen to user data for blocked status changes or logout events
     _ref.listen(currentUserProvider, (previous, next) {
       final wasBlocked = previous?.valueOrNull?.isBlocked ?? false;
       final isBlocked = next.valueOrNull?.isBlocked ?? false;
 
-      if (wasBlocked != isBlocked) {
-        debugPrint('User blocked status changed: $isBlocked');
+      final wasLoggedIn = previous?.valueOrNull != null;
+      final isLoggedIn = next.valueOrNull != null;
+
+      if (wasBlocked != isBlocked || wasLoggedIn != isLoggedIn) {
+        debugPrint(
+            'AuthNotifier: User state changed (blocked: $isBlocked, loggedIn: $isLoggedIn)');
         notifyListeners();
       }
     });
@@ -92,8 +97,22 @@ class AuthNotifier extends ChangeNotifier {
   final Ref _ref;
 
   bool get isLoggedIn {
-    final user = _ref.read(authStateProvider).valueOrNull;
-    return user != null;
+    // 1. Immediate check: Firebase Auth has a user? (Fixes race condition on login)
+    final firebaseUser = _ref.read(authStateProvider).valueOrNull;
+    if (firebaseUser != null) return true;
+
+    // 2. Check currentUserProvider for cached user data
+    final userAsync = _ref.read(currentUserProvider);
+    if (userAsync.valueOrNull != null) return true;
+
+    // 3. Last resort: check raw local session in Hive
+    //    This covers the brief window where providers haven't resolved yet
+    return _ref.read(hasLocalSessionProvider);
+  }
+
+  bool get isLoading {
+    final userAsync = _ref.read(currentUserProvider);
+    return userAsync.isLoading;
   }
 
   bool get isBlocked {
@@ -116,12 +135,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     refreshListenable: authNotifier,
     redirect: (context, state) {
+      final isLoading = authNotifier.isLoading;
       final isLoggedIn = authNotifier.isLoggedIn;
       final isBlocked = authNotifier.isBlocked;
       final isAuthRoute = state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.signup ||
           state.matchedLocation == AppRoutes.forgotPassword;
       final isBlockedRoute = state.matchedLocation == AppRoutes.blocked;
+
+      // If auth state is still loading (and no local session), stay put
+      if (isLoading) {
+        debugPrint(
+            'Router Redirect: auth still loading, staying put at ${state.matchedLocation}');
+        return null;
+      }
 
       debugPrint(
         'Router Redirect: location=${state.matchedLocation}, isLoggedIn=$isLoggedIn, isBlocked=$isBlocked',
@@ -136,17 +163,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // If logged in and on auth route, redirect to dashboard
       if (isLoggedIn && isAuthRoute) {
         debugPrint('Redirecting to dashboard');
-        return AppRoutes.dashboard;
-      }
-
-      // If blocked, redirect to blocked page
-      if (isLoggedIn && isBlocked && !isBlockedRoute) {
-        debugPrint('User is blocked, redirecting to blocked page');
-        return AppRoutes.blocked;
-      }
-
-      // If NOT blocked but on blocked page, go to dashboard
-      if (isLoggedIn && !isBlocked && isBlockedRoute) {
         return AppRoutes.dashboard;
       }
 

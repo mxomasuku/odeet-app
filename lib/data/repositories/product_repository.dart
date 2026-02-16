@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 
 import '../models/product_model.dart';
 import '../../core/constants/firestore_paths.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/connectivity_service.dart';
+import '../../core/utils/stream_extensions.dart';
 import '../../presentation/controllers/auth_controller.dart';
 
 /// Product repository provider
@@ -16,8 +19,12 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 /// Products stream provider with keepAlive to cache data
 final productsStreamProvider = StreamProvider<List<ProductModel>>((ref) {
   ref.keepAlive();
+
   final repository = ref.watch(productRepositoryProvider);
-  return repository.watchProducts();
+  return repository.watchProducts().map((products) {
+    _cacheProducts(products);
+    return products;
+  }).onErrorEmit(() => _getCachedProducts());
 });
 
 /// Single product provider
@@ -29,16 +36,54 @@ final productProvider = FutureProvider.family<ProductModel?, String>((ref, id) {
 /// Low stock products count provider (optimized - doesn't do N+1 queries)
 final lowStockCountProvider = FutureProvider<int>((ref) async {
   ref.keepAlive();
-  final repository = ref.watch(productRepositoryProvider);
-  return repository.getLowStockCount();
+  try {
+    final repository = ref.watch(productRepositoryProvider);
+    return repository.getLowStockCount();
+  } catch (e) {
+    debugPrint('Error fetching low stock count: $e');
+    return 0;
+  }
 });
 
 /// Low stock products provider - only fetch when explicitly needed (e.g., in alerts sheet)
 final lowStockProductsProvider =
     FutureProvider<List<ProductModel>>((ref) async {
-  final repository = ref.watch(productRepositoryProvider);
-  return repository.getLowStockProducts();
+  try {
+    final repository = ref.watch(productRepositoryProvider);
+    return repository.getLowStockProducts();
+  } catch (e) {
+    debugPrint('Error fetching low stock products: $e');
+    return [];
+  }
 });
+
+/// Cache products in Hive
+void _cacheProducts(List<ProductModel> products) {
+  try {
+    final box = Hive.box('user');
+    final jsonList = products.map((p) => jsonEncode(p.toJson())).toList();
+    box.put('cached_products', jsonEncode(jsonList));
+  } catch (e) {
+    debugPrint('Error caching products: $e');
+  }
+}
+
+/// Get cached products from Hive
+List<ProductModel> _getCachedProducts() {
+  try {
+    final box = Hive.box('user');
+    final raw = box.get('cached_products');
+    if (raw == null) return [];
+    final jsonList = (jsonDecode(raw) as List).cast<String>();
+    return jsonList
+        .map(
+            (p) => ProductModel.fromJson(jsonDecode(p) as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    debugPrint('Error reading cached products: $e');
+    return [];
+  }
+}
 
 /// Product repository for Firestore operations
 class ProductRepository {

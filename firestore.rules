@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Helper function to check if user is blocked
     function isUserBlocked() {
-      return 'isBlocked' in request.auth.token && request.auth.token.isBlocked == true;
+      return request.auth.token.get('isBlocked', false) == true;
     }
     
     match /{document=**} {

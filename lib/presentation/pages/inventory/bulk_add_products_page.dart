@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/common_widgets.dart';
 import '../../controllers/auth_controller.dart';
+import '../../../core/services/connectivity_service.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/shop_model.dart';
 import '../../../data/repositories/product_repository.dart';
@@ -192,6 +193,21 @@ class _BulkAddProductsPageState extends ConsumerState<BulkAddProductsPage> {
           backgroundColor: AppTheme.errorColor,
         ),
       );
+      return;
+    }
+
+    // Check connectivity before proceeding (stock operations require network)
+    final connectivity = ref.read(connectivityServiceProvider);
+    if (!connectivity.isOnline) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Network required. Stock additions cannot be saved offline.'),
+            backgroundColor: AppTheme.warningColor,
+          ),
+        );
+      }
       return;
     }
 

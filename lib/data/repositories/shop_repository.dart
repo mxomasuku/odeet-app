@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
 
 import '../models/shop_model.dart';
 import '../../core/constants/firestore_paths.dart';
+import '../../core/utils/stream_extensions.dart';
 import '../../presentation/controllers/auth_controller.dart';
 
 /// Shop repository provider
@@ -11,33 +14,70 @@ final shopRepositoryProvider = Provider<ShopRepository>((ref) {
   return ShopRepository(ref);
 });
 
-/// Shops stream provider
+/// Shops stream provider - depends on stable user attributes only
+/// (orgId, userId, role) to avoid unnecessary rebuilds when non-relevant
+/// user fields like lastLoginAt change.
 final shopsStreamProvider = StreamProvider<List<ShopModel>>((ref) {
-  // Watch user provider to trigger rebuild when user logs in/updates
+  // Watch user provider to get role info
   final userAsync = ref.watch(currentUserProvider);
   final user = userAsync.valueOrNull;
 
-  if (user?.organizationId == null) return Stream.value([]);
+  if (user?.organizationId == null || user!.organizationId.isEmpty) {
+    // Serve cached shops while user is loading
+    return Stream.value(_getCachedShops());
+  }
 
   final repository = ref.watch(shopRepositoryProvider);
 
+  Stream<List<ShopModel>> firestoreStream;
   // If user is owner, manager, or auditor, show all shops
-  if (user!.isOwner || user.isManager || user.canViewLedger) {
-    return repository.watchShops(orgId: user.organizationId);
+  if (user.isOwner || user.isManager || user.canViewLedger) {
+    firestoreStream = repository.watchShops(orgId: user.organizationId);
+  } else {
+    // Otherwise (shopkeeper), show only assigned shops
+    firestoreStream =
+        repository.watchShopsForUser(user.id, orgId: user.organizationId);
   }
 
-  // Otherwise (shopkeeper), show only assigned shops
-  // Note: Since watchShopsForUser isn't implemented as a stream yet, we'll implement a new stream method in repo
-  // Or reuse watchShops with a query filter if possible, but Firestore 'IN' queries are limited.
-  // Better to look for 'assignedUserIds' array-contains.
-  return repository.watchShopsForUser(user.id, orgId: user.organizationId);
+  return firestoreStream.map((shops) {
+    // Cache shops on successful fetch
+    _cacheShops(shops);
+    return shops;
+  }).onErrorEmit(() => _getCachedShops());
 });
 
 /// Shop stream provider by ID
 final shopProvider = StreamProvider.family<ShopModel?, String>((ref, id) {
   final repository = ref.watch(shopRepositoryProvider);
-  return repository.watchShop(id);
+  return repository.watchShop(id).onErrorEmit(() => null);
 });
+
+/// Cache shops in Hive
+void _cacheShops(List<ShopModel> shops) {
+  try {
+    final box = Hive.box('user');
+    final jsonList = shops.map((s) => jsonEncode(s.toJson())).toList();
+    box.put('cached_shops', jsonEncode(jsonList));
+  } catch (e) {
+    debugPrint('Error caching shops: $e');
+  }
+}
+
+/// Get cached shops from Hive
+List<ShopModel> _getCachedShops() {
+  try {
+    final box = Hive.box('user');
+    final raw = box.get('cached_shops');
+    if (raw == null) return [];
+    final jsonList = (jsonDecode(raw) as List).cast<String>();
+    return jsonList
+        .map((s) => ShopModel.fromJson(jsonDecode(s) as Map<String, dynamic>))
+        .toList();
+  } catch (e) {
+    debugPrint('Error reading cached shops: $e');
+    return [];
+  }
+}
 
 /// Current shop provider (selected shop for operations)
 final currentShopProvider = StateProvider<ShopModel?>((ref) => null);

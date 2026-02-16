@@ -9,9 +9,11 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/barcode_scanner_service.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/sale_model.dart';
+import '../../../data/models/shop_model.dart';
 import '../../../data/repositories/product_repository.dart';
 import '../../../data/repositories/sale_repository.dart';
 import '../../../data/repositories/shop_repository.dart';
+import '../../controllers/auth_controller.dart';
 
 class NewSalePage extends ConsumerStatefulWidget {
   const NewSalePage({super.key});
@@ -28,6 +30,7 @@ class _NewSalePageState extends ConsumerState<NewSalePage> {
   List<ProductModel> _searchResults = [];
   bool _isSearching = false;
   bool _isCompletingSale = false;
+  ShopModel? _selectedShop;
 
   double get subtotal => _cart.fold(0, (sum, item) => sum + item.total);
   double get total => subtotal; // Add tax/discount later
@@ -138,9 +141,60 @@ class _NewSalePageState extends ConsumerState<NewSalePage> {
 
   @override
   Widget build(BuildContext context) {
+    final shopsAsync = ref.watch(shopsStreamProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final shops = shopsAsync.valueOrNull ?? [];
+
+    // Auto-select shop if only one, or if none selected yet
+    if (_selectedShop == null && shops.isNotEmpty) {
+      // For shopkeepers (users with shopIds), filter to their shops
+      final userShopIds = user?.shopIds ?? <String>[];
+      if (userShopIds.isNotEmpty) {
+        final userShops =
+            shops.where((s) => userShopIds.contains(s.id)).toList();
+        if (userShops.isNotEmpty) {
+          _selectedShop = userShops.first;
+        }
+      } else if (user?.isOwner == true || user?.isManager == true) {
+        // Owners/managers see all shops
+        _selectedShop = shops.first;
+      }
+    }
+
+    // Determine which shops to show in picker
+    final userShopIds = user?.shopIds ?? <String>[];
+    final availableShops = userShopIds.isNotEmpty
+        ? shops.where((s) => userShopIds.contains(s.id)).toList()
+        : shops;
+    final showShopPicker = availableShops.length > 1;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Sale'),
+        title: showShopPicker
+            ? DropdownButtonHideUnderline(
+                child: DropdownButton<ShopModel>(
+                  value: _selectedShop,
+                  hint: const Text('Select Shop',
+                      style: TextStyle(color: Colors.white70)),
+                  dropdownColor: AppTheme.primaryColor,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                  items: availableShops.map((shop) {
+                    return DropdownMenuItem<ShopModel>(
+                      value: shop,
+                      child: Text(shop.name),
+                    );
+                  }).toList(),
+                  onChanged: (shop) {
+                    setState(() {
+                      _selectedShop = shop;
+                      _cart.clear(); // Clear cart when changing shops
+                      _searchResults = [];
+                    });
+                  },
+                ),
+              )
+            : Text(_selectedShop?.name ?? 'New Sale'),
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
@@ -435,12 +489,11 @@ class _NewSalePageState extends ConsumerState<NewSalePage> {
     setState(() => _isCompletingSale = true);
 
     try {
-      // Get shop info (use first available shop for now)
-      final shops = await ref.read(shopRepositoryProvider).getShops();
-      if (shops.isEmpty) {
-        throw Exception('No shop configured');
+      // Use the selected shop
+      if (_selectedShop == null) {
+        throw Exception('No shop selected');
       }
-      final shop = shops.first;
+      final shop = _selectedShop!;
 
       // Convert cart items to sale items
       final saleItems = _cart

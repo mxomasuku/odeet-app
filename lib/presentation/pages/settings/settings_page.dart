@@ -7,7 +7,6 @@ import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/common/common_widgets.dart';
-import '../../providers/theme_mode_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -85,21 +84,7 @@ class SettingsPage extends ConsumerWidget {
             title: const Text('Notifications'),
             trailing: Switch(value: true, onChanged: (v) {}),
           ),
-          ListTile(
-            leading: const Icon(Icons.dark_mode),
-            title: Text(
-              ref.read(themeModeProvider.notifier).state == ThemeMode.dark
-                  ? 'Dark Mode'
-                  : 'Light Mode',
-            ),
-            trailing: Switch(
-              value: ref.watch(themeModeProvider) == ThemeMode.dark,
-              onChanged: (isDark) {
-                ref.read(themeModeProvider.notifier).state =
-                    isDark ? ThemeMode.dark : ThemeMode.light;
-              },
-            ),
-          ),
+
           const Divider(),
 
           // Subscription

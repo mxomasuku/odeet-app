@@ -1,49 +1,256 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive/hive.dart';
+import 'dart:convert';
 
 import '../../data/models/user_model.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/services/local_storage_service.dart';
+import '../../core/utils/stream_extensions.dart';
 
-/// Auth state provider - watches Firebase auth state
-final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+// ---------------------------------------------------------------------------
+// Local session persistence helpers
+// ---------------------------------------------------------------------------
+
+/// Save auth session locally so that the user stays logged in across restarts.
+/// This is the key to offline-first auth: we don't rely solely on Firebase Auth.
+Future<void> _saveLocalSession(String uid, String email) async {
+  try {
+    final box = Hive.box('user');
+    await box.put('auth_session', jsonEncode({'uid': uid, 'email': email}));
+    debugPrint('Local auth session saved for $email');
+  } catch (e) {
+    debugPrint('Error saving local auth session: $e');
+  }
+}
+
+/// Read the persisted local session. Returns {uid, email} or null.
+Map<String, String>? _readLocalSession() {
+  try {
+    final box = Hive.box('user');
+    final raw = box.get('auth_session');
+    if (raw == null) return null;
+    final data = jsonDecode(raw) as Map<String, dynamic>;
+    return {
+      'uid': data['uid'] as String,
+      'email': data['email'] as String,
+    };
+  } catch (e) {
+    debugPrint('Error reading local auth session: $e');
+    return null;
+  }
+}
+
+/// Clear the local session — called ONLY on explicit sign-out.
+Future<void> _clearLocalSession() async {
+  try {
+    final box = Hive.box('user');
+    await box.delete('auth_session');
+    debugPrint('Local auth session cleared');
+  } catch (e) {
+    debugPrint('Error clearing local auth session: $e');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Provider that exposes whether we have a local session
+// ---------------------------------------------------------------------------
+
+/// Returns true if a local auth session exists in Hive.
+/// This is synchronous and available immediately — no waiting for Firebase.
+final hasLocalSessionProvider = Provider<bool>((ref) {
+  return _readLocalSession() != null;
 });
 
-/// Current user provider - fetches user data from Firestore
+/// Returns the locally-persisted UID (or null).
+final localSessionUidProvider = Provider<String?>((ref) {
+  return _readLocalSession()?['uid'];
+});
+
+// ---------------------------------------------------------------------------
+// Firebase Auth state stream (for when Firebase is available)
+// ---------------------------------------------------------------------------
+
+/// Auth state provider - watches Firebase auth state.
+final authStateProvider = StreamProvider<User?>((ref) {
+  final controller = StreamController<User?>();
+  final auth = FirebaseAuth.instance;
+  late final StreamSubscription<User?> sub;
+  bool firstEmitted = false;
+
+  sub = auth.authStateChanges().listen(
+    (user) {
+      if (!firstEmitted) {
+        firstEmitted = true;
+        debugPrint('Firebase Auth initialized. User: ${user?.email ?? 'null'}');
+      }
+      // When Firebase Auth confirms a user, save the session locally.
+      if (user != null) {
+        _saveLocalSession(user.uid, user.email ?? '');
+      }
+      controller.add(user);
+    },
+    onError: (error) => controller.addError(error),
+    onDone: () => controller.close(),
+  );
+
+  controller.onCancel = () => sub.cancel();
+  return controller.stream;
+});
+
+// ---------------------------------------------------------------------------
+// Current user provider — offline-first with cache
+// ---------------------------------------------------------------------------
+
+/// Current user provider - fetches user data from Firestore with local caching.
+/// Handles three states:
+///   1. Firebase Auth still loading → serve cached user as a bridge
+///   2. Firebase Auth has a user → use Firestore with caching
+///   3. Firebase Auth definitively returned null → session expired → clear & logout
 final currentUserProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
-  final user = authState.valueOrNull;
 
-  if (user == null) return Stream.value(null);
-
-  return FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .snapshots()
-      .map((doc) {
-    if (!doc.exists) return null;
-    try {
-      final data = _convertTimestamps(doc.data()!);
-      return UserModel.fromJson({
-        'id': doc.id,
-        ...data,
-      });
-    } catch (e) {
-      debugPrint('Error parsing UserModel: $e');
-      return null;
+  // Case 1: Firebase Auth is still loading — serve cached user as a bridge
+  // so the UI isn't blank while Firebase restores the session.
+  if (authState.isLoading) {
+    final localSession = _readLocalSession();
+    if (localSession != null) {
+      final cachedUser = _getCachedUser(localSession['uid']!);
+      if (cachedUser != null) {
+        debugPrint('Bridge: serving cached user while Firebase Auth loads');
+        return Stream.value(cachedUser);
+      }
     }
-  });
+    // No cached user available — stay in loading state
+    return const Stream.empty();
+  }
+
+  final firebaseUser = authState.valueOrNull;
+
+  // Case 2: Firebase Auth has a valid user → use Firestore with caching
+  if (firebaseUser != null) {
+    return _userStreamWithCache(firebaseUser.uid);
+  }
+
+  // Case 3: Firebase Auth returned null (done loading, no Firebase user).
+  // This can happen on cold start (token expired, offline, timing).
+  // If we have a local session with cached data, TRUST IT — don't clear.
+  // Only explicit sign-out (AuthController.signOut) clears the local session.
+  final localSession = _readLocalSession();
+  if (localSession != null) {
+    final cachedUser = _getCachedUser(localSession['uid']!);
+    if (cachedUser != null) {
+      debugPrint(
+          'Firebase Auth has no user but local session exists — serving cached user');
+      return Stream.value(cachedUser);
+    }
+  }
+
+  // No Firebase user AND no local session — genuinely not logged in
+  debugPrint('No Firebase user and no local session — user is not logged in');
+  return Stream.value(null);
 });
 
-/// Current organization provider
+/// Get cached UserModel synchronously from Hive
+UserModel? _getCachedUser(String uid) {
+  try {
+    final userBox = Hive.box('user');
+    final cachedJson = userBox.get('current_user');
+    if (cachedJson == null) return null;
+    final cachedData = jsonDecode(cachedJson) as Map<String, dynamic>;
+    final cachedUser = UserModel.fromJson(cachedData);
+    if (cachedUser.id == uid) return cachedUser;
+    return null;
+  } catch (e) {
+    debugPrint('Error reading cached user: $e');
+    return null;
+  }
+}
+
+/// Stream user data with local cache fallback
+Stream<UserModel?> _userStreamWithCache(String uid) async* {
+  final userBox = Hive.box('user');
+  UserModel? lastEmitted;
+
+  // First, emit cached user immediately if available
+  final cachedUser = _getCachedUser(uid);
+  if (cachedUser != null) {
+    lastEmitted = cachedUser;
+    yield cachedUser;
+  }
+
+  // Then listen to Firestore for real-time updates
+  try {
+    await for (final doc in FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()) {
+      if (!doc.exists) {
+        if (lastEmitted != null) {
+          lastEmitted = null;
+          yield null;
+        }
+        continue;
+      }
+      try {
+        final data = _convertTimestamps(doc.data()!);
+        final userModel = UserModel.fromJson({
+          'id': doc.id,
+          ...data,
+        });
+
+        // Cache the user locally
+        await userBox.put('current_user', jsonEncode(userModel.toJson()));
+
+        // Only yield if different from last emitted to avoid unnecessary rebuilds
+        if (lastEmitted == null || lastEmitted != userModel) {
+          lastEmitted = userModel;
+          yield userModel;
+        }
+      } catch (e) {
+        debugPrint('Error parsing UserModel: $e');
+        if (lastEmitted != null) {
+          lastEmitted = null;
+          yield null;
+        }
+      }
+    }
+  } catch (e) {
+    // Firestore permission denied or network error — serve cached user
+    debugPrint('Firestore user stream error (serving cached): $e');
+    if (lastEmitted == null) {
+      final cached = _getCachedUser(uid);
+      if (cached != null) yield cached;
+    }
+  }
+}
+
+/// Clear cached user on logout
+Future<void> _clearCachedUser() async {
+  try {
+    final userBox = Hive.box('user');
+    await userBox.delete('current_user');
+  } catch (e) {
+    debugPrint('Error clearing cached user: $e');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Organization provider
+// ---------------------------------------------------------------------------
+
+/// Current organization provider.
+/// Fetches from Firestore and caches in Hive. Falls back to Hive on error.
 final currentOrganizationProvider = StreamProvider<OrganizationModel?>((ref) {
   final userAsync = ref.watch(currentUserProvider);
   final user = userAsync.valueOrNull;
-
-  if (user == null) return Stream.value(null);
+  if (user == null || user.organizationId.isEmpty) {
+    // Try to serve cached org even when user is null (e.g. loading from Hive)
+    return Stream.value(_getCachedOrganization());
+  }
 
   return FirebaseFirestore.instance
       .collection('organizations')
@@ -53,16 +260,46 @@ final currentOrganizationProvider = StreamProvider<OrganizationModel?>((ref) {
     if (!doc.exists) return null;
     try {
       final data = _convertTimestamps(doc.data()!);
-      return OrganizationModel.fromJson({
+      final org = OrganizationModel.fromJson({
         'id': doc.id,
         ...data,
       });
+      // Cache in Hive for offline use
+      _cacheOrganization(org);
+      return org;
     } catch (e) {
       debugPrint('Error parsing OrganizationModel: $e');
       return null;
     }
-  });
+  }).onErrorEmit(() => _getCachedOrganization());
 });
+
+/// Cache organization in Hive
+void _cacheOrganization(OrganizationModel org) {
+  try {
+    final box = Hive.box('user');
+    box.put('cached_organization', jsonEncode(org.toJson()));
+  } catch (e) {
+    debugPrint('Error caching organization: $e');
+  }
+}
+
+/// Get cached organization from Hive
+OrganizationModel? _getCachedOrganization() {
+  try {
+    final box = Hive.box('user');
+    final raw = box.get('cached_organization');
+    if (raw == null) return null;
+    return OrganizationModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  } catch (e) {
+    debugPrint('Error reading cached organization: $e');
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Timestamp helper
+// ---------------------------------------------------------------------------
 
 /// Helper to convert Firestore Timestamps to DateTime ISO strings
 Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
@@ -79,6 +316,10 @@ Map<String, dynamic> _convertTimestamps(Map<String, dynamic> data) {
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Auth controller
+// ---------------------------------------------------------------------------
 
 /// Auth controller provider
 final authControllerProvider =
@@ -106,10 +347,18 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
         password: password,
       );
 
-      // Update last login
+      // Save local session immediately so user stays logged in
       if (credential.user != null) {
-        await _firestore.collection('users').doc(credential.user!.uid).update({
+        await _saveLocalSession(
+          credential.user!.uid,
+          credential.user!.email ?? email.trim(),
+        );
+
+        // Update last login in the background
+        _firestore.collection('users').doc(credential.user!.uid).update({
           'lastLoginAt': FieldValue.serverTimestamp(),
+        }).catchError((e) {
+          debugPrint('Error updating lastLoginAt: $e');
         });
       }
 
@@ -141,6 +390,12 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       if (credential.user == null) {
         throw const AuthException(message: 'Failed to create user');
       }
+
+      // Save local session immediately
+      await _saveLocalSession(
+        credential.user!.uid,
+        credential.user!.email ?? email.trim(),
+      );
 
       if (isInviteSignup) {
         // For invite signups, create a minimal user document
@@ -195,13 +450,17 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  /// Sign out
+  /// Sign out — this is the ONLY place that clears the local session
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     try {
-      // Clear local data
+      // Clear local session FIRST
+      await _clearLocalSession();
+
+      // Clear all local data
       await _ref.read(localStorageServiceProvider).clearAllData();
 
+      // Sign out of Firebase
       await _auth.signOut();
       state = const AsyncValue.data(null);
     } catch (e, st) {

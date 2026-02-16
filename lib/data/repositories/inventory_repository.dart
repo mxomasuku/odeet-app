@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/product_model.dart';
 import '../../core/constants/firestore_paths.dart';
+import '../../core/utils/stream_extensions.dart';
 import '../../presentation/controllers/auth_controller.dart';
 
 /// Inventory repository provider
@@ -14,7 +15,9 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
 final shopInventoryProvider =
     StreamProvider.family<List<ProductInventory>, String>((ref, shopId) {
   final repository = ref.watch(inventoryRepositoryProvider);
-  return repository.watchShopInventory(shopId);
+  return repository
+      .watchShopInventory(shopId)
+      .onErrorEmit(() => <ProductInventory>[]);
 });
 
 /// Inventory repository for Firestore operations
