@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs basename -a)",
+      "Bash(git mv lib apps/mobile/lib)",
+      "Bash(git mv android apps/mobile/android)",
+      "Bash(git mv ios apps/mobile/ios)",
+      "Bash(git mv web apps/mobile/web)",
+      "Bash(git mv windows apps/mobile/windows)",
+      "Bash(git mv macos apps/mobile/macos)",
+      "Bash(git mv assets apps/mobile/assets)",
+      "Bash(git mv test apps/mobile/test)",
+      "Bash(git mv pubspec.yaml apps/mobile/pubspec.yaml)",
+      "Bash(git mv pubspec.lock apps/mobile/pubspec.lock)",
+      "Bash(git mv analysis_options.yaml apps/mobile/analysis_options.yaml)",
+      "Bash(git mv .metadata apps/mobile/.metadata)",
+      "Bash(git mv stocktake.iml apps/mobile/stocktake.iml)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npm install)",
+      "Bash(npx vite build)",
+      "Bash(npm run build)",
+      "Bash(npm run admin:dev)",
+      "Bash(lsof -i :5173)"
+    ]
+  }
+}
