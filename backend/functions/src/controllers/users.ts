@@ -15,10 +15,7 @@ interface RemoveUserRequest {
     uid: string;
 }
 
-/**
- * Remove a user from the organization.
- * Can only be called by an Owner.
- */
+
 export const removeUserFromTeam = onCall(async (request) => {
     // Validate caller authentication
     if (!request.auth) {

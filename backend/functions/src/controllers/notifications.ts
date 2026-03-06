@@ -9,9 +9,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-/**
- * Firestore trigger: When a new sale is created, notify managers/owners
- */
+
 export const onSaleCreated = onDocumentCreated(
   "organizations/{orgId}/sales/{saleId}",
   async (event) => {
