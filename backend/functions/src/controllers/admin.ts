@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
+import * as functions from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { beforeUserCreated } from "firebase-functions/v2/identity";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 
@@ -44,7 +44,7 @@ interface AdminListUsersRequest {
  * List all users from Firestore with pagination and optional search.
  * Returns user docs enriched with Firebase Auth metadata.
  */
-export const adminListUsers = onCall(async (request) => {
+export const adminListUsers = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     const { limit = 20, offset = 0, search } = request.data as AdminListUsersRequest;
@@ -146,7 +146,7 @@ async function enrichUsersWithAuth(
 /**
  * Get aggregate statistics for the admin dashboard.
  */
-export const adminGetDashboardStats = onCall(async (request) => {
+export const adminGetDashboardStats = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     logger.info(`adminGetDashboardStats called by ${callerUid}`);
@@ -241,7 +241,7 @@ interface AdminGetUserDetailRequest {
 /**
  * Get detailed information for a single user by UID.
  */
-export const adminGetUserDetail = onCall(async (request) => {
+export const adminGetUserDetail = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     const { uid } = request.data as AdminGetUserDetailRequest;
@@ -325,7 +325,7 @@ interface AdminToggleUserBlockRequest {
  * Block or unblock a user. Uses isAdmin claim instead of owner check.
  * Updates custom claims, Firestore user doc, and revokes tokens if blocking.
  */
-export const adminToggleUserBlock = onCall(async (request) => {
+export const adminToggleUserBlock = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     const { uid, isBlocked } = request.data as AdminToggleUserBlockRequest;
@@ -399,7 +399,7 @@ interface AdminUpdateTrialDaysRequest {
  *
  * This way the app sees: trialStartDate + 90 = now + X  (i.e. X days left).
  */
-export const adminUpdateTrialDays = onCall(async (request) => {
+export const adminUpdateTrialDays = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     const { organizationId, trialDays } = request.data as AdminUpdateTrialDaysRequest;
@@ -468,7 +468,7 @@ interface AdminSetAdminClaimRequest {
  * Promote or demote a user to/from admin.
  * Only callable by existing admins.
  */
-export const adminSetAdminClaim = onCall(async (request) => {
+export const adminSetAdminClaim = onCall({ cors: true }, async (request) => {
     const callerUid = verifyAdmin(request);
 
     const { uid, isAdmin } = request.data as AdminSetAdminClaimRequest;
@@ -527,25 +527,12 @@ export const adminSetAdminClaim = onCall(async (request) => {
     }
 });
 
-// ---------------------------------------------------------------------------
+import * as functionsV1 from "firebase-functions/v1";
+
 // 7. onUserCreated
 // ---------------------------------------------------------------------------
 
-/**
- * Auth trigger that fires before a user is created.
- * Logs the new signup to the admin_activity_log collection.
- *
- * Since we don't return a blocking response, the user creation proceeds
- * normally.
- */
-export const onUserCreated = beforeUserCreated(async (event) => {
-    const user = event.data;
-
-    if (!user) {
-        logger.warn("onUserCreated triggered with no user data");
-        return;
-    }
-
+export const onUserCreated = functionsV1.auth.user().onCreate(async (user) => {
     logger.info(`New user signup: ${user.uid} (${user.email || "no email"})`);
 
     try {
@@ -556,10 +543,6 @@ export const onUserCreated = beforeUserCreated(async (event) => {
             timestamp: FieldValue.serverTimestamp(),
         });
     } catch (error) {
-        // Don't block user creation if logging fails
         logger.error("Failed to log user signup to admin_activity_log:", error);
     }
-
-    // Return nothing to allow user creation to proceed
-    return;
 });
