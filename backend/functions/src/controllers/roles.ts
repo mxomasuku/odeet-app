@@ -17,10 +17,7 @@ interface SetUserRolesRequest {
   shopIds?: string[];
 }
 
-/**
- * Callable function to set user roles (custom claims + Firestore).
- * Must be called by an owner or admin.
- */
+
 export const setUserRoles = onCall(async (request) => {
   // Validate caller is authenticated
   if (!request.auth) {
