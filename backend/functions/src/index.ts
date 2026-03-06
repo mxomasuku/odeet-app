@@ -36,3 +36,14 @@ export { createInvite, redeemInvite, getOrgInvites } from "./controllers/invites
 
 // Export user management functions
 export { removeUserFromTeam, toggleUserBlockStatus } from "./controllers/users";
+
+// Export admin dashboard functions
+export {
+    adminListUsers,
+    adminGetDashboardStats,
+    adminGetUserDetail,
+    adminToggleUserBlock,
+    adminUpdateTrialDays,
+    adminSetAdminClaim,
+    onUserCreated,
+} from "./controllers/admin";

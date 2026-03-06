@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "odeet-app"
+  },
+  "targets": {
+    "odeet-app": {
+      "hosting": {
+        "mobile": [
+          "odeet-app"
+        ],
+        "admin": [
+          "odeet-admin"
+        ]
+      }
+    }
+  }
+}

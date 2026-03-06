@@ -1,0 +1,18 @@
+{
+  "name": "odeet-monorepo",
+  "private": true,
+  "scripts": {
+    "admin:dev": "cd apps/admin && npm run dev",
+    "admin:build": "cd apps/admin && npm run build",
+    "admin:install": "cd apps/admin && npm install",
+    "backend:build": "cd backend/functions && npm run build",
+    "backend:install": "cd backend/functions && npm install",
+    "backend:deploy": "firebase deploy --only functions",
+    "deploy:admin": "npm run admin:build && firebase deploy --only hosting:admin",
+    "deploy:functions": "npm run backend:build && firebase deploy --only functions",
+    "deploy:all": "npm run backend:build && npm run admin:build && firebase deploy",
+    "emulators": "cd backend/functions && npm run build && cd ../.. && firebase emulators:start --import=.emulator-data --export-on-exit=.emulator-data",
+    "install:all": "npm run backend:install && npm run admin:install",
+    "setup": "npm run install:all"
+  }
+}

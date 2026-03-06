@@ -1,12 +1,30 @@
 {
-    "hosting": {
-        "public": "build/web",
-        "ignore": [
-            "firebase.json",
-            "**/.*",
-            "**/node_modules/**"
-        ]
-    },
+    "hosting": [
+        {
+            "target": "mobile",
+            "public": "apps/mobile/build/web",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ]
+        },
+        {
+            "target": "admin",
+            "public": "apps/admin/dist",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ],
+            "rewrites": [
+                {
+                    "source": "**",
+                    "destination": "/index.html"
+                }
+            ]
+        }
+    ],
     "firestore": {
         "rules": "firestore.rules",
         "indexes": "firestore.indexes.json"
@@ -31,6 +49,9 @@
         "storage": {
             "port": 9199
         },
+        "hosting": {
+            "port": 5002
+        },
         "ui": {
             "enabled": true
         },
@@ -42,11 +63,11 @@
                 "default": {
                     "projectId": "odeet-app",
                     "appId": "1:1077847279793:android:ea597edcd9054a312e7a90",
-                    "fileOutput": "android/app/google-services.json"
+                    "fileOutput": "apps/mobile/android/app/google-services.json"
                 }
             },
             "dart": {
-                "lib/firebase_options.dart": {
+                "apps/mobile/lib/firebase_options.dart": {
                     "projectId": "odeet-app",
                     "configurations": {
                         "android": "1:1077847279793:android:ea597edcd9054a312e7a90",
@@ -59,7 +80,7 @@
                     "projectId": "odeet-app",
                     "appId": "1:1077847279793:ios:6f78b354a11184112e7a90",
                     "uploadDebugSymbols": false,
-                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                    "fileOutput": "apps/mobile/ios/Runner/GoogleService-Info.plist"
                 }
             }
         }
